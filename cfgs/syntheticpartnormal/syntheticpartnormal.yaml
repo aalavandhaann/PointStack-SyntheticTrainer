@@ -1,7 +1,7 @@
 RANDOM_SEED: 2
 DATASET:
-    NAME: PartNormal
-    NUM_CLASS: 50
+    NAME: SyntheticPartNormal
+    NUM_CLASS: 21
     NUM_POINTS: 2048
     IS_SEGMENTATION: True
     USE_AUG_JIT: True

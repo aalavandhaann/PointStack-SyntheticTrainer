@@ -1,0 +1,10 @@
+__pycache__
+build
+data/
+**/experiments/
+utils/PLY
+annotation4.json
+label-studio-example.json
+timothe-export-test.json
+timothe-the-great.py
+data/partnormal
