@@ -47,7 +47,7 @@ net = net.cuda()
 net.eval()
 
 print('Evaluating Epoch: ', epoch)
-val_dict = validate(net, val_dataloader, net.get_loss, 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION)
+val_dict = validate(net, val_dataloader, net.get_loss, 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
 
 if cfg.DATASET.IS_SEGMENTATION:
     miou = np.round(val_dict['miou'], 4)

@@ -14,6 +14,9 @@ from core.builders import build_dataset, build_network, build_optimizer
 from utils.runtime_utils import cfg, cfg_from_yaml_file, validate
 from utils.vis_utils import visualize_numpy
 
+import psutil
+import sys
+
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
     parser.add_argument('--cfg_file', type=str, default=None, help='specify the config for training')
@@ -42,9 +45,10 @@ random.seed(random_seed)
 # Build Dataloader
 train_dataset = build_dataset(cfg, split = 'train')
 train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True)
+# train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=12)
 
 val_dataset = build_dataset(cfg, split='val')
-val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False)
+val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, drop_last=False)
 
 # Build Network and Optimizer
 net = build_network(cfg)
@@ -56,8 +60,13 @@ if args.pretrained_ckpt is not None:
             del pretrained_state_dict[k]
 
     net.load_state_dict(pretrained_state_dict, strict = False)
-    
-net = net.cuda()
+
+# To use multi-gpu code commented below (use net.module to access the model class and itss functions)
+# ngpu = 2
+# device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
+# net = net.to(device)
+# net = torch.nn.DataParallel(net, list(range(ngpu)))
+net = net.cuda() # Comment if using using multi-gpu
 opt, scheduler = build_optimizer(cfg, net.parameters(), len(train_dataloader))
 
 
@@ -82,9 +91,14 @@ for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
     net.zero_grad()
     net.train()
     loss = 0
+    # for data_dic_index, data_dic in tqdm(enumerate(train_dataloader)):
     for data_dic in tqdm(train_dataloader):
+        # cuda_data_dic = {}
+        # for dkey in data_dic.keys():
+        #     # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
+        #     cuda_data_dic[dkey] = data_dic[dkey].cuda()
 
-        data_dic = net(data_dic) 
+        data_dic = net(data_dic)
         loss, loss_dict = net.get_loss(data_dic, smoothing = True, is_segmentation = cfg.DATASET.IS_SEGMENTATION)
         loss = loss
         loss.backward()
@@ -93,7 +107,7 @@ for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
         # if (steps_cnt)%(cfg.OPTIMIZER.GRAD_ACCUMULATION) == 0:
         torch.nn.utils.clip_grad_norm_(net.parameters(), cfg.OPTIMIZER.GRAD_CLIP)
         opt.step()
-        opt.zero_grad()
+        opt.zero_grad()#Originally was here
         lr = scheduler.get_last_lr()[0]
         scheduler.step()
         writer.add_scalar('steps/loss', loss, steps_cnt)
@@ -101,9 +115,9 @@ for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
         
         for k,v in loss_dict.items():
             writer.add_scalar('steps/loss_' + k, v, steps_cnt)
-            
+    
     if (epoch % args.val_steps) == 0:
-        val_dict = validate(net, val_dataloader, net.get_loss, 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION)
+        val_dict = validate(net, val_dataloader, net.get_loss, 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
         
         print('='*20, 'Epoch ' + str(epoch+1), '='*20)
 

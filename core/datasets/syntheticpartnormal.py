@@ -19,8 +19,10 @@ class SyntheticPartNormal(PartNormal):
 
         with open(os.path.join(self.root, 'train_test_split', 'shuffled_train_file_list.json'), 'r') as f:
             train_ids = set([str(d.split('/')[2]) for d in json.load(f)])
+
         with open(os.path.join(self.root, 'train_test_split', 'shuffled_val_file_list.json'), 'r') as f:
             val_ids = set([str(d.split('/')[2]) for d in json.load(f)])
+
         with open(os.path.join(self.root, 'train_test_split', 'shuffled_test_file_list.json'), 'r') as f:
             test_ids = set([str(d.split('/')[2]) for d in json.load(f)])
 
@@ -68,19 +70,29 @@ class SyntheticPartNormal(PartNormal):
         return len(self.datapath)
 
     def __getitem__(self, index):
-        if index in self.cache:
-            point_set, normal, seg, cls = self.cache[index]
-        else:
-            fn = self.datapath[index]
-            cat = self.datapath[index][0]
-            cls = self.classes[cat]
-            cls = np.array([cls]).astype(np.int32)
-            data = np.loadtxt(fn[1]).astype(np.float32)
-            point_set = data[:, 0:3]
-            normal = data[:, 3:6]
-            seg = data[:, -1].astype(np.int32)
-            if len(self.cache) < self.cache_size:
-                self.cache[index] = (point_set, normal, seg, cls)
+
+        fn = self.datapath[index]
+        cat = self.datapath[index][0]
+        cls = self.classes[cat]
+        cls = np.array([cls]).astype(np.int32)
+        data = np.loadtxt(fn[1]).astype(np.float32)
+        point_set = data[:, 0:3]
+        normal = data[:, 3:6]
+        seg = data[:, -1].astype(np.int32)
+
+        # if index in self.cache:
+        #     point_set, normal, seg, cls = self.cache[index]
+        # else:
+        #     fn = self.datapath[index]
+        #     cat = self.datapath[index][0]
+        #     cls = self.classes[cat]
+        #     cls = np.array([cls]).astype(np.int32)
+        #     data = np.loadtxt(fn[1]).astype(np.float32)
+        #     point_set = data[:, 0:3]
+        #     normal = data[:, 3:6]
+        #     seg = data[:, -1].astype(np.int32)
+        #     if len(self.cache) < self.cache_size:
+        #         self.cache[index] = (point_set, normal, seg, cls)
 
         # if self.normalize:
         #     point_set = pc_normalize(point_set)
@@ -101,5 +113,13 @@ class SyntheticPartNormal(PartNormal):
             'cls_tokens': torch.from_numpy(cls).cuda(),
             'norms'     : torch.from_numpy(normal).cuda()
         }
+        
+        # data_dic = {
+        #     'points'    : torch.from_numpy(point_set),
+        #     'seg_id'    : torch.from_numpy(seg),
+        #     'cls_tokens': torch.from_numpy(cls),
+        #     'norms'     : torch.from_numpy(normal)
+        # }
+        
 
         return data_dic

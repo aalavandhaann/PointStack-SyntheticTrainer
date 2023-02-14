@@ -72,7 +72,7 @@ def get_n_params(model):
         pp += nn
     return pp
 
-def validate(net, testloader, criterion, device, is_segmentation = False):
+def validate(net, testloader, criterion, device, is_segmentation = False, num_classes=50):
     net.eval()
     num_params = get_n_params(net)
 
@@ -90,17 +90,18 @@ def validate(net, testloader, criterion, device, is_segmentation = False):
     with torch.no_grad():
         for batch_idx, data_dic in enumerate(tqdm(testloader)):
             start_time = datetime.datetime.now()
+            
             data_dic = net(data_dic)
             time_cost.append(float((datetime.datetime.now() - start_time).total_seconds()))
               
 
             if is_segmentation:
-                miou = net.compute_overall_iou(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = 50)
+                miou = net.compute_overall_iou(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = num_classes)
                 # total iou of current batch in each process:
                 batch_ious = data_dic['pred_score_logits'].new_tensor([np.sum(miou)], dtype=torch.float64)  # same device with seg_pred
 
                 # prepare seg_pred and target for later calculating loss and acc:
-                seg_pred = data_dic['pred_score_logits'].contiguous().view(-1, 50) # ShapeNetPart has 50 classes
+                seg_pred = data_dic['pred_score_logits'].contiguous().view(-1, num_classes) # ShapeNetPart has 50 classes
 
                 target = data_dic['seg_id'].view(-1, 1)[:, 0]
                 # Loss
