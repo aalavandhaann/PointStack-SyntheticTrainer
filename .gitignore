@@ -3,6 +3,7 @@ build
 data/
 **/experiments/
 utils/PLY
+original-dataset/
 annotation4.json
 label-studio-example.json
 timothe-export-test.json
