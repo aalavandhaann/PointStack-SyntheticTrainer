@@ -120,9 +120,9 @@ def main():
             for k,v in loss_dict.items():
                 writer.add_scalar('steps/loss_' + k, v, steps_cnt)
 
-            if(training_iteration > 15):
-                break
-            training_iteration+=1
+            # if(training_iteration > 15):
+            #     break
+            # training_iteration+=1
         
         if (epoch % args.val_steps) == 0:
             # Check if the network is multi-gpu, otherwise use the single-gpu network as handled in exception
