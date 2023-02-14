@@ -10,6 +10,35 @@ from easydict import EasyDict
 from pathlib import Path
 
 import torch.nn.functional as F
+import torch.multiprocessing
+
+'''
+    When DataParallel is used then the methods of a module are exposed only as net.module.method
+    To handle this we need a method
+'''
+def get_method(net: torch.nn.Module, method: str):
+    flag = getattr(net, method, None)
+    if(not flag):
+        return getattr(net.module, method)
+    return getattr(net, method)
+'''
+    Method to get the module tied to multi-gpu or a single gpu or cpu
+'''
+def get_nn_module_cuda(net: torch.nn.Module, ngpu: int=1)->torch.nn.DataParallel:
+    if(ngpu < 2):
+        return net.cuda()
+
+    if(torch.multiprocessing.get_start_method() != 'spawn'):
+        message = 'You need to set the cuda start method to "spawn"'
+        message = f'{message}\nSimply add the code \nimport torch.multiprocessing\ntorch.multiprocessing.set_start_method("spawn")'
+        message = f'{message}\nThis needs to be done the moment after torch package is imported'
+        raise RuntimeError(message)
+
+
+    device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
+    net = net.to(device)
+    net = torch.nn.DataParallel(net, list(range(ngpu)))
+    return net
 
 def merge_new_config(config, new_config):
     if '_BASE_CONFIG_' in new_config:
@@ -45,6 +74,7 @@ def cfg_from_yaml_file(cfg_file, config):
 cfg = EasyDict()
 cfg.ROOT_DIR = (Path(__file__).resolve().parent / '../').resolve()
 cfg.LOCAL_RANK = 0
+cfg.GPU_COUNT = 1
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -88,15 +118,24 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
     shape_ious = 0.0
     count  = 0.0
     with torch.no_grad():
-        for batch_idx, data_dic in enumerate(tqdm(testloader)):
+        for batch_idx, original_data_dic in enumerate(tqdm(testloader)):
             start_time = datetime.datetime.now()
             
+            data_dic = {}
+            for dkey in original_data_dic.keys():
+                # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
+                if(not original_data_dic[dkey].is_cuda):
+                    data_dic[dkey] = original_data_dic[dkey].cuda()
+                else:
+                    data_dic[dkey] = original_data_dic[dkey]
+
             data_dic = net(data_dic)
             time_cost.append(float((datetime.datetime.now() - start_time).total_seconds()))
               
 
             if is_segmentation:
-                miou = net.compute_overall_iou(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = num_classes)
+                miou = get_method(net, 'compute_overall_iou')(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = num_classes)
+                
                 # total iou of current batch in each process:
                 batch_ious = data_dic['pred_score_logits'].new_tensor([np.sum(miou)], dtype=torch.float64)  # same device with seg_pred
 

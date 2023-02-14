@@ -11,11 +11,8 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from core.builders import build_dataset, build_network, build_optimizer
-from utils.runtime_utils import cfg, cfg_from_yaml_file, validate
+from utils.runtime_utils import cfg, cfg_from_yaml_file, validate, get_nn_module_cuda, get_method
 from utils.vis_utils import visualize_numpy
-
-import psutil
-import sys
 
 def parse_config():
     parser = argparse.ArgumentParser(description='arg parser')
@@ -34,132 +31,150 @@ def parse_config():
 
     return args, cfg
 
-args, cfg = parse_config()
+def main():
 
-random_seed = cfg.RANDOM_SEED # Setup seed for reproducibility
-torch.manual_seed(random_seed)
-torch.cuda.manual_seed(random_seed)
-np.random.seed(random_seed)
-random.seed(random_seed)
+    args, cfg = parse_config()        
+    random_seed = cfg.RANDOM_SEED # Setup seed for reproducibility
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    np.random.seed(random_seed)
+    random.seed(random_seed)
 
-# Build Dataloader
-train_dataset = build_dataset(cfg, split = 'train')
-train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True)
-# train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=12)
+    # Build Dataloader
+    train_dataset = build_dataset(cfg, split = 'train')
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=cfg.OPTIMIZER.BATCH_SIZE)
+    # train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=12)
 
-val_dataset = build_dataset(cfg, split='val')
-val_dataloader = DataLoader(val_dataset, batch_size=4, shuffle=False, drop_last=False)
+    val_dataset = build_dataset(cfg, split='val')
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=False, drop_last=False, num_workers=cfg.OPTIMIZER.BATCH_SIZE)
 
-# Build Network and Optimizer
-net = build_network(cfg)
-if args.pretrained_ckpt is not None:
-    pretrained_state_dict = torch.load(args.pretrained_ckpt)['model_state_dict']
+    # Build Network and Optimizer
+    net = build_network(cfg)
+    if args.pretrained_ckpt is not None:
+        pretrained_state_dict = torch.load(args.pretrained_ckpt)['model_state_dict']
+        
+        for k, v in net.state_dict().items():
+            if (v.shape != pretrained_state_dict[k].shape):
+                del pretrained_state_dict[k]
+
+        net.load_state_dict(pretrained_state_dict, strict = False)
+
+    net = get_nn_module_cuda(net, cfg.GPU_COUNT)
+    opt, scheduler = build_optimizer(cfg, net.parameters(), len(train_dataloader))
+
+
+    from torch.utils.tensorboard import SummaryWriter
+    ckpt_dir = cfg.ROOT_DIR / 'experiments' / cfg.DATASET.NAME / args.exp_name / 'ckpt'
+    tensorboard_dir = cfg.ROOT_DIR / 'experiments' / cfg.DATASET.NAME / args.exp_name / 'tensorboard'
+
+    os.makedirs(ckpt_dir, exist_ok=True)
+    os.makedirs(tensorboard_dir, exist_ok=True)
+
+    writer = SummaryWriter(tensorboard_dir)
+
+    min_loss = 1e20
+    max_acc = 0
+
+    steps_cnt = 0
+    epoch_cnt = 0
+
+
+    for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
+        opt.zero_grad()
+        net.zero_grad()
+        net.train()
+        loss = 0
+        training_iteration = 0
+        for original_data_dic in tqdm(train_dataloader):
+
+            data_dic = {}
+            for dkey in original_data_dic.keys():
+                # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
+                if(not original_data_dic[dkey].is_cuda):
+                    data_dic[dkey] = original_data_dic[dkey].cuda()
+                else:
+                    data_dic[dkey] = original_data_dic[dkey]
+
+            data_dic = net(data_dic)
+
+            # Check if the network is multi-gpu, otherwise use the single-gpu network as handled in exception
+            loss, loss_dict = get_method(net, 'get_loss')(data_dic, smoothing = True, is_segmentation = cfg.DATASET.IS_SEGMENTATION)
+            # try:
+            #     loss, loss_dict = net.get_loss(data_dic, smoothing = True, is_segmentation = cfg.DATASET.IS_SEGMENTATION)
+            # except AttributeError:
+            #     loss, loss_dict = net.module.get_loss(data_dic, smoothing = True, is_segmentation = cfg.DATASET.IS_SEGMENTATION)
+
+            loss = loss
+            loss.backward()
+            steps_cnt += 1
+            
+            # if (steps_cnt)%(cfg.OPTIMIZER.GRAD_ACCUMULATION) == 0:
+            torch.nn.utils.clip_grad_norm_(net.parameters(), cfg.OPTIMIZER.GRAD_CLIP)
+            opt.step()
+            opt.zero_grad()#Originally was here
+            lr = scheduler.get_last_lr()[0]
+            scheduler.step()
+            writer.add_scalar('steps/loss', loss, steps_cnt)
+            writer.add_scalar('steps/lr', lr, steps_cnt)
+            
+            for k,v in loss_dict.items():
+                writer.add_scalar('steps/loss_' + k, v, steps_cnt)
+
+            if(training_iteration > 15):
+                break
+            training_iteration+=1
+        
+        if (epoch % args.val_steps) == 0:
+            # Check if the network is multi-gpu, otherwise use the single-gpu network as handled in exception
+            val_dict = validate(net, val_dataloader, get_method(net,'get_loss'), 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
+            
+            print('='*20, 'Epoch ' + str(epoch+1), '='*20)
+
+            if cfg.DATASET.IS_SEGMENTATION:
+                writer.add_scalar('epochs/val_miou', val_dict['miou'], epoch_cnt)
+                print('Val mIoU: ', val_dict['miou'])
     
-    for k, v in net.state_dict().items():
-        if (v.shape != pretrained_state_dict[k].shape):
-            del pretrained_state_dict[k]
+            else:
+                writer.add_scalar('epochs/val_loss', val_dict['loss'], epoch_cnt)
+                writer.add_scalar('epochs/val_acc', val_dict['acc'], epoch_cnt)
+                writer.add_scalar('epochs/val_acc_avg', val_dict['acc_avg'], epoch_cnt)
+                print('Val Loss: ', val_dict['loss'], 'Val Accuracy: ', val_dict['acc'], 'Val Avg Accuracy: ', val_dict['acc_avg'])
 
-    net.load_state_dict(pretrained_state_dict, strict = False)
+                for k,v in val_dict['loss_dic'].items():
+                    writer.add_scalar('epochs/val_loss_'+ k, v, epoch_cnt)
 
-# To use multi-gpu code commented below (use net.module to access the model class and itss functions)
-# ngpu = 2
-# device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
-# net = net.to(device)
-# net = torch.nn.DataParallel(net, list(range(ngpu)))
-net = net.cuda() # Comment if using using multi-gpu
-opt, scheduler = build_optimizer(cfg, net.parameters(), len(train_dataloader))
+            epoch_cnt += 1
 
+            
+            if cfg.DATASET.IS_SEGMENTATION:
+                if val_dict['miou'] > max_acc:
+                    torch.save({
+                        'epoch': epoch,
+                        'model_state_dict': net.state_dict(),
+                        'optimizer_state_dict': opt.state_dict(),
+                        }, ckpt_dir / 'ckpt-best.pth')
+                    
+                    max_acc = val_dict['miou']
+            else:
 
-from torch.utils.tensorboard import SummaryWriter
-ckpt_dir = cfg.ROOT_DIR / 'experiments' / cfg.DATASET.NAME / args.exp_name / 'ckpt'
-tensorboard_dir = cfg.ROOT_DIR / 'experiments' / cfg.DATASET.NAME / args.exp_name / 'tensorboard'
+                if val_dict['acc'] > max_acc:
+                    torch.save({
+                        'epoch': epoch,
+                        'model_state_dict': net.state_dict(),
+                        'optimizer_state_dict': opt.state_dict(),
+                        'loss': val_dict['loss'],
+                        }, ckpt_dir / 'ckpt-best.pth')
+                    
+                    max_acc = val_dict['acc']
 
-os.makedirs(ckpt_dir, exist_ok=True)
-os.makedirs(tensorboard_dir, exist_ok=True)
-
-writer = SummaryWriter(tensorboard_dir)
-
-min_loss = 1e20
-max_acc = 0
-
-steps_cnt = 0
-epoch_cnt = 0
-
-
-for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
-    opt.zero_grad()
-    net.zero_grad()
-    net.train()
-    loss = 0
-    # for data_dic_index, data_dic in tqdm(enumerate(train_dataloader)):
-    for data_dic in tqdm(train_dataloader):
-        # cuda_data_dic = {}
-        # for dkey in data_dic.keys():
-        #     # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
-        #     cuda_data_dic[dkey] = data_dic[dkey].cuda()
-
-        data_dic = net(data_dic)
-        loss, loss_dict = net.get_loss(data_dic, smoothing = True, is_segmentation = cfg.DATASET.IS_SEGMENTATION)
-        loss = loss
-        loss.backward()
-        steps_cnt += 1
-        
-        # if (steps_cnt)%(cfg.OPTIMIZER.GRAD_ACCUMULATION) == 0:
-        torch.nn.utils.clip_grad_norm_(net.parameters(), cfg.OPTIMIZER.GRAD_CLIP)
-        opt.step()
-        opt.zero_grad()#Originally was here
-        lr = scheduler.get_last_lr()[0]
-        scheduler.step()
-        writer.add_scalar('steps/loss', loss, steps_cnt)
-        writer.add_scalar('steps/lr', lr, steps_cnt)
-        
-        for k,v in loss_dict.items():
-            writer.add_scalar('steps/loss_' + k, v, steps_cnt)
-    
-    if (epoch % args.val_steps) == 0:
-        val_dict = validate(net, val_dataloader, net.get_loss, 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
-        
-        print('='*20, 'Epoch ' + str(epoch+1), '='*20)
-
-        if cfg.DATASET.IS_SEGMENTATION:
-            writer.add_scalar('epochs/val_miou', val_dict['miou'], epoch_cnt)
-            print('Val mIoU: ', val_dict['miou'])
- 
-        else:
-            writer.add_scalar('epochs/val_loss', val_dict['loss'], epoch_cnt)
-            writer.add_scalar('epochs/val_acc', val_dict['acc'], epoch_cnt)
-            writer.add_scalar('epochs/val_acc_avg', val_dict['acc_avg'], epoch_cnt)
-            print('Val Loss: ', val_dict['loss'], 'Val Accuracy: ', val_dict['acc'], 'Val Avg Accuracy: ', val_dict['acc_avg'])
-
-            for k,v in val_dict['loss_dic'].items():
-                writer.add_scalar('epochs/val_loss_'+ k, v, epoch_cnt)
-
-        epoch_cnt += 1
-
-        
-        if cfg.DATASET.IS_SEGMENTATION:
-            if val_dict['miou'] > max_acc:
-                torch.save({
+        torch.save({
                     'epoch': epoch,
                     'model_state_dict': net.state_dict(),
                     'optimizer_state_dict': opt.state_dict(),
-                    }, ckpt_dir / 'ckpt-best.pth')
-                
-                max_acc = val_dict['miou']
-        else:
+                    }, ckpt_dir / 'ckpt-last.pth')
 
-            if val_dict['acc'] > max_acc:
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': net.state_dict(),
-                    'optimizer_state_dict': opt.state_dict(),
-                    'loss': val_dict['loss'],
-                    }, ckpt_dir / 'ckpt-best.pth')
-                
-                max_acc = val_dict['acc']
+if __name__ == '__main__':
+    import torch.multiprocessing
+    torch.multiprocessing.set_start_method("spawn", force=False)
+    main()
 
-    torch.save({
-                'epoch': epoch,
-                'model_state_dict': net.state_dict(),
-                'optimizer_state_dict': opt.state_dict(),
-                }, ckpt_dir / 'ckpt-last.pth')
