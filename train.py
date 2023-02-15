@@ -52,10 +52,10 @@ def main():
     net = build_network(cfg)
     if args.pretrained_ckpt is not None:
         pretrained_state_dict = torch.load(args.pretrained_ckpt)['model_state_dict']
-        
         for k, v in net.state_dict().items():
-            if (v.shape != pretrained_state_dict[k].shape):
-                del pretrained_state_dict[k]
+            if(pretrained_state_dict.get(k, None)):
+                if (v.shape != pretrained_state_dict[k].shape):
+                    del pretrained_state_dict[k]
 
         net.load_state_dict(pretrained_state_dict, strict = False)
 
@@ -132,6 +132,7 @@ def main():
 
             if cfg.DATASET.IS_SEGMENTATION:
                 writer.add_scalar('epochs/val_miou', val_dict['miou'], epoch_cnt)
+                writer.add_scalar('epochs/val_accuracy', val_dict.get('accuracy', 0), epoch_cnt)
                 print('Val mIoU: ', val_dict['miou'])
     
             else:

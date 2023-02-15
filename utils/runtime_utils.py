@@ -179,9 +179,15 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
                 miou = float("%.3f" % (100. * overall_miou))
             except TypeError:
                 miou = float("%.3f" % (100. * overall_miou[0]))
-            print(f'OVERALL MEAN {miou}')
+            
+            try:
+                accuracy = float("%.3f" % (100. * overall_acc))
+            except TypeError:
+                accuracy = float("%.3f" % (100. * overall_acc[0]))
+
             return {
                     "miou": miou,
+                    "accuracy": accuracy, 
                     "time": time_cost,
                     "num_params": num_params,
                     'peak_memory': torch.cuda.memory_stats('cuda')['allocated_bytes.all.peak']
