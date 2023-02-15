@@ -23,7 +23,7 @@ def get_method(net: torch.nn.Module, method: str):
     return getattr(net, method)
 
 def get_device():
-    return torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")  
+    return torch.device(torch.cuda.current_device() if (torch.cuda.is_available()) else "cpu")  
 '''
     Method to get the module tied to multi-gpu or a single gpu or cpu
 '''
@@ -40,7 +40,7 @@ def get_nn_module_cuda(net: torch.nn.Module, ngpu: int=1)->torch.nn.DataParallel
 
 
     # device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
-    net = torch.nn.DataParallel(net, list(range(ngpu)))
+    net = torch.nn.DataParallel(net, device_ids=list(range(ngpu)))
     net = net.to(device)
     return net, device
 
