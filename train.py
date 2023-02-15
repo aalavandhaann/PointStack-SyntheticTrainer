@@ -42,11 +42,11 @@ def main():
 
     # Build Dataloader
     train_dataset = build_dataset(cfg, split = 'train')
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=cfg.OPTIMIZER.BATCH_SIZE)
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=False, drop_last=True, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 4), pin_memory=True)
     # train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=12)
 
     val_dataset = build_dataset(cfg, split='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=False, drop_last=False, num_workers=cfg.OPTIMIZER.BATCH_SIZE)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 4), pin_memory=True)
 
     # Build Network and Optimizer
     net = build_network(cfg)
@@ -59,7 +59,7 @@ def main():
 
         net.load_state_dict(pretrained_state_dict, strict = False)
 
-    net = get_nn_module_cuda(net, cfg.GPU_COUNT)
+    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
     opt, scheduler = build_optimizer(cfg, net.parameters(), len(train_dataloader))
 
 
@@ -91,7 +91,7 @@ def main():
             for dkey in original_data_dic.keys():
                 # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
                 if(not original_data_dic[dkey].is_cuda):
-                    data_dic[dkey] = original_data_dic[dkey].cuda()
+                    data_dic[dkey] = original_data_dic[dkey].to(device)#cuda()
                 else:
                     data_dic[dkey] = original_data_dic[dkey]
 
@@ -126,7 +126,7 @@ def main():
         
         if (epoch % args.val_steps) == 0:
             # Check if the network is multi-gpu, otherwise use the single-gpu network as handled in exception
-            val_dict = validate(net, val_dataloader, get_method(net,'get_loss'), 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
+            val_dict = validate(net, val_dataloader, get_method(net,'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
             
             print('='*20, 'Epoch ' + str(epoch+1), '='*20)
 
@@ -174,7 +174,7 @@ def main():
                     }, ckpt_dir / 'ckpt-last.pth')
 
 if __name__ == '__main__':
-    import torch.multiprocessing
-    torch.multiprocessing.set_start_method("spawn", force=False)
+    # import torch.multiprocessing
+    # torch.multiprocessing.set_start_method("spawn", force=False)
     main()
 

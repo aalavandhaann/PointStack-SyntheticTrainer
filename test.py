@@ -38,7 +38,7 @@ def main():
 
     # Build Dataloader
     val_dataset = build_dataset(cfg, split='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=cfg.OPTIMIZER.BATCH_SIZE)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 4), pin_memory=True)
 
     # Build Network and Optimizer
     net = build_network(cfg)
@@ -47,12 +47,12 @@ def main():
     net.load_state_dict(state_dict['model_state_dict'])
 
     # net = net.cuda()
-    net = get_nn_module_cuda(net, cfg.GPU_COUNT)
+    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
     net.eval()
 
     print('Evaluating Epoch: ', epoch)
     # Try using the multi-gpu network, if error, then use the single gpu net as handled in the except
-    val_dict = validate(net, val_dataloader, get_method(net, 'get_loss'), 'cuda', is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
+    val_dict = validate(net, val_dataloader, get_method(net, 'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
 
     if cfg.DATASET.IS_SEGMENTATION:
         miou = np.round(val_dict['miou'], 4)

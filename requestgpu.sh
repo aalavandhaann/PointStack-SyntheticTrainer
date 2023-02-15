@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --account=def-rnoumeir
-#SBATCH --gres=gpu:4       # Request GPU "generic resources"
+#SBATCH --gres=gpu:v100:4       # Request GPU "generic resources"
 #SBATCH --cpus-per-task=20  # Refer to cluster's documentation for the right CPU/GPU ratio
 #SBATCH --mem=64000M       # Memory proportional to GPUs: 32000 Cedar, 47000 Béluga, 64000 Graham.
 #SBATCH --time=00:30:00     # DD-HH:MM:SS

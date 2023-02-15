@@ -4,6 +4,7 @@ import open3d as o3d
 import torch
 from tqdm import tqdm
 import datetime
+from utils.runtime_utils import get_device
 
 def visualize_numpy(pc_numpy, colors = None):
     point_cloud = o3d.geometry.PointCloud()
@@ -46,8 +47,17 @@ def visualize_part(net, testloader):
     net.eval()
 
     with torch.no_grad():
-        for batch_idx, data_dic in enumerate(tqdm(testloader)):
+        for batch_idx, original_data_dic in enumerate(tqdm(testloader)):
             if ((batch_idx % 10 == 0) and (batch_idx > 1260)):
+                data_dic = {}
+                device = get_device()
+                for dkey in original_data_dic.keys():
+                    # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
+                    if(not original_data_dic[dkey].is_cuda):
+                        data_dic[dkey] = original_data_dic[dkey].to(device)#cuda()
+                    else:
+                        data_dic[dkey] = original_data_dic[dkey]
+
                 data_dic = net(data_dic)        
                 points = data_dic['points'].squeeze(0).cpu().numpy()
                 label = data_dic['seg_id'].squeeze(0).cpu().numpy()
