@@ -28,9 +28,13 @@ def prepareDataSet(ply_files: pathlib.Path.glob, dataset_destination_dir: pathli
 
         if(not save_dataset_path.exists()):
             np_data = np.loadtxt(ply_file, skiprows=12)
-            np.savetxt(save_dataset_path, np_data, fmt='%f')
-
-        append_to.append(dataset_json_entry)
+            np_data = np_data[np_data[:,-1] > 0]
+            if(np_data.shape[0]):
+                np.savetxt(save_dataset_path, np_data, fmt='%f')
+            else:
+                dataset_json_entry = None          
+        if(dataset_json_entry):
+            append_to.append(dataset_json_entry)
         return dataset_json_entry, append_to
 
     def saveJSON(save_json_path: pathlib.Path, entries: list) -> None:

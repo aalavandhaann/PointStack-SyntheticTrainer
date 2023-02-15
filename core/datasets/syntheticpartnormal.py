@@ -55,18 +55,12 @@ class SyntheticPartNormal(PartNormal):
             for fn in self.meta[item]:
                 self.datapath.append((item, fn))
 
-        self.classes = dict(zip(self.cat, range(len(self.cat))))
-        # Mapping from category ('Chair') to a list of int [10,11,12,13] as segmentation labels
-        # self.seg_classes = {'Earphone': [16, 17, 18], 'Motorbike': [30, 31, 32, 33, 34, 35], 'Rocket': [41, 42, 43],
-        #                     'Car': [8, 9, 10, 11], 'Laptop': [28, 29], 'Cap': [6, 7], 'Skateboard': [44, 45, 46],
-        #                     'Mug': [36, 37], 'Guitar': [19, 20, 21], 'Bag': [4, 5], 'Lamp': [24, 25, 26, 27],
-        #                     'Table': [47, 48, 49], 'Airplane': [0, 1, 2, 3], 'Pistol': [38, 39, 40],
-        #                     'Chair': [12, 13, 14, 15], 'Knife': [22, 23]}
+        self.classes = dict(zip(self.cat, range(len(self.cat))))           
         
-        self.seg_classes = {'Pediatrics': [i for i in range(21)]}
+        self.seg_classes = {'Others': 0, 'Body-Parts': [i+1 for i in range(20)]}
 
         self.cache = {}  # from index to (point_set, cls, seg) tuple
-        self.cache_size = 20000
+        self.cache_size = 2500
         self.device = get_device()
 
     def __len__(self):
@@ -80,14 +74,19 @@ class SyntheticPartNormal(PartNormal):
     '''
     def __getitem__(self, index):
 
-        fn = self.datapath[index]
-        cat = self.datapath[index][0]
-        cls = self.classes[cat]
-        cls = np.array([cls]).astype(np.int32)
-        data = np.loadtxt(fn[1]).astype(np.float32)
-        point_set = data[:, 0:3]
-        normal = data[:, 3:6]
-        seg = data[:, -1].astype(np.int32)
+        if index in self.cache:
+            point_set, normal, seg, cls = self.cache[index]
+        else:
+            fn = self.datapath[index]
+            cat = self.datapath[index][0]
+            cls = self.classes[cat]
+            cls = np.array([cls]).astype(np.int32)
+            data = np.loadtxt(fn[1]).astype(np.float32)
+            point_set = data[:, 0:3]
+            normal = data[:, 3:6]
+            seg = data[:, -1].astype(np.int32)
+            if len(self.cache) < self.cache_size:
+                self.cache[index] = (point_set, normal, seg, cls)       
 
         # if self.normalize:
         #     point_set = pc_normalize(point_set)

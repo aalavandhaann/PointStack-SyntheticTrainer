@@ -23,7 +23,7 @@ def get_method(net: torch.nn.Module, method: str):
     return getattr(net, method)
 
 def get_device():
-    return torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")  
+    return torch.device(torch.cuda.current_device() if (torch.cuda.is_available()) else "cpu")  
 '''
     Method to get the module tied to multi-gpu or a single gpu or cpu
 '''
@@ -40,7 +40,7 @@ def get_nn_module_cuda(net: torch.nn.Module, ngpu: int=1)->torch.nn.DataParallel
 
 
     # device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
-    net = torch.nn.DataParallel(net, list(range(ngpu)))
+    net = torch.nn.DataParallel(net, device_ids=list(range(ngpu)))
     net = net.to(device)
     return net, device
 
@@ -179,9 +179,15 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
                 miou = float("%.3f" % (100. * overall_miou))
             except TypeError:
                 miou = float("%.3f" % (100. * overall_miou[0]))
-            print(f'OVERALL MEAN {miou}')
+            
+            try:
+                accuracy = float("%.3f" % (100. * overall_acc))
+            except TypeError:
+                accuracy = float("%.3f" % (100. * overall_acc[0]))
+
             return {
                     "miou": miou,
+                    "accuracy": accuracy, 
                     "time": time_cost,
                     "num_params": num_params,
                     'peak_memory': torch.cuda.memory_stats('cuda')['allocated_bytes.all.peak']
