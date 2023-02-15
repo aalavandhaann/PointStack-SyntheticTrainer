@@ -35,7 +35,7 @@ def main():
 
     # Build Dataloader
     val_dataset = build_dataset(cfg, split='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=cfg.OPTIMIZER.BATCH_SIZE)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 4), pin_memory=True)
 
     # Build Network
     net = build_network(cfg)
@@ -44,7 +44,7 @@ def main():
     net.load_state_dict(state_dict['model_state_dict'])
 
     # net = net.cuda()
-    net = get_nn_module_cuda(net, cfg.GPU_COUNT)
+    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
     net.eval()
 
     print('Evaluating Epoch: ', epoch)

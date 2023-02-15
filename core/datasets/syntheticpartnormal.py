@@ -10,6 +10,8 @@ import numpy as np
 
 from .partnormal import PartNormal
 
+from utils.runtime_utils import get_device
+
 class SyntheticPartNormal(PartNormal):
     def __init__(self, cfg, class_choice=None, split='train', load_name=True, load_file=True, random_rotate=False, random_jitter=False, random_translate=False):
         super().__init__(cfg = cfg, class_choice=None, split=split, load_name=True, load_file=True, random_rotate=False, random_jitter=False, random_translate=False)
@@ -65,6 +67,7 @@ class SyntheticPartNormal(PartNormal):
 
         self.cache = {}  # from index to (point_set, cls, seg) tuple
         self.cache_size = 20000
+        self.device = get_device()
 
     def __len__(self):
         return len(self.datapath)
@@ -108,10 +111,10 @@ class SyntheticPartNormal(PartNormal):
             }        
         else:
             data_dic = {
-                'points'    : torch.from_numpy(point_set).cuda(),
-                'seg_id'    : torch.from_numpy(seg).cuda(),
-                'cls_tokens': torch.from_numpy(cls).cuda(),
-                'norms'     : torch.from_numpy(normal).cuda()
+                'points'    : torch.from_numpy(point_set).to(self.device),#.cuda(),
+                'seg_id'    : torch.from_numpy(seg).to(self.device),#.cuda(),
+                'cls_tokens': torch.from_numpy(cls).to(self.device),#.cuda(),
+                'norms'     : torch.from_numpy(normal).to(self.device)#.cuda()
             }        
 
         return data_dic

@@ -21,24 +21,28 @@ def get_method(net: torch.nn.Module, method: str):
     if(not flag):
         return getattr(net.module, method)
     return getattr(net, method)
+
+def get_device():
+    return torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")  
 '''
     Method to get the module tied to multi-gpu or a single gpu or cpu
 '''
 def get_nn_module_cuda(net: torch.nn.Module, ngpu: int=1)->torch.nn.DataParallel:
+    device = get_device()
     if(ngpu < 2):
-        return net.cuda()
+        return net.to(device)#.cuda()
 
     if(torch.multiprocessing.get_start_method() != 'spawn'):
         message = 'You need to set the cuda start method to "spawn"'
         message = f'{message}\nSimply add the code \nimport torch.multiprocessing\ntorch.multiprocessing.set_start_method("spawn")'
         message = f'{message}\nThis needs to be done the moment after torch package is imported'
-        raise RuntimeError(message)
+        # raise RuntimeError(message)
 
 
-    device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
-    net = net.to(device)
+    # device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
     net = torch.nn.DataParallel(net, list(range(ngpu)))
-    return net
+    net = net.to(device)
+    return net, device
 
 def merge_new_config(config, new_config):
     if '_BASE_CONFIG_' in new_config:
@@ -125,7 +129,7 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
             for dkey in original_data_dic.keys():
                 # print(f'KEY: {dkey}, SIZE: {data_dic[dkey].shape}')
                 if(not original_data_dic[dkey].is_cuda):
-                    data_dic[dkey] = original_data_dic[dkey].cuda()
+                    data_dic[dkey] = original_data_dic[dkey].to(device)#cuda()
                 else:
                     data_dic[dkey] = original_data_dic[dkey]
 
@@ -241,11 +245,12 @@ class PointcloudScale(object):  # input random scaling
     def __init__(self, scale_low=2. / 3., scale_high=3. / 2.):
         self.scale_low = scale_low
         self.scale_high = scale_high
+        self.device = get_device()
 
     def __call__(self, pc):
         bsize = pc.size()[0]
         for i in range(bsize):
             xyz1 = np.random.uniform(low=self.scale_low, high=self.scale_high, size=[3])
-            pc[i, :, 0:3] = torch.mul(pc[i, :, 0:3], torch.from_numpy(xyz1).float().cuda())
+            pc[i, :, 0:3] = torch.mul(pc[i, :, 0:3], torch.from_numpy(xyz1).float().to(self.device))#.cuda())
 
         return pc
