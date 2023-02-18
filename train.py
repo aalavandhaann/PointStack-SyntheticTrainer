@@ -42,12 +42,12 @@ def main():
 
     # Build Dataloader
     train_dataset = build_dataset(cfg, split = 'train')
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=False, drop_last=True, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
     # train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=12)
 
     val_dataset = build_dataset(cfg, split='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
-    pretrained_state_dict, pretrained_opt_state_dict = None, None
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
+
     # Build Network and Optimizer
     net = build_network(cfg)
     net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
@@ -91,13 +91,13 @@ def main():
     epoch_cnt = 0
 
 
-    for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
+    for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1), dynamic_ncols=True):
         opt.zero_grad()
         net.zero_grad()
         net.train()
         loss = 0
         training_iteration = 0
-        for original_data_dic in tqdm(train_dataloader):
+        for original_data_dic in tqdm(train_dataloader, dynamic_ncols=True):
 
             data_dic = {}
             for dkey in original_data_dic.keys():
