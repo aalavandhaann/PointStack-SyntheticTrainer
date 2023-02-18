@@ -79,13 +79,13 @@ def main():
     epoch_cnt = 0
 
 
-    for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1)):
+    for epoch in tqdm(range(1, cfg.OPTIMIZER.MAX_EPOCH + 1), dynamic_ncols=True):
         opt.zero_grad()
         net.zero_grad()
         net.train()
         loss = 0
         training_iteration = 0
-        for original_data_dic in tqdm(train_dataloader):
+        for original_data_dic in tqdm(train_dataloader, dynamic_ncols=True):
 
             data_dic = {}
             for dkey in original_data_dic.keys():

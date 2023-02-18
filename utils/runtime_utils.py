@@ -40,7 +40,8 @@ def get_nn_module_cuda(net: torch.nn.Module, ngpu: int=1)->torch.nn.DataParallel
 
 
     # device = torch.device("cuda:0" if (torch.cuda.is_available() and ngpu > 0) else "cpu")  
-    net = torch.nn.DataParallel(net, device_ids=list(range(ngpu)))
+    # net = torch.nn.DataParallel(net, device_ids=list(range(ngpu)))
+    net = torch.nn.DataParallel(net, device_ids=list(range(min(torch.cuda.device_count(), ngpu))))
     net = net.to(device)
     return net, device
 
@@ -122,7 +123,7 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
     shape_ious = 0.0
     count  = 0.0
     with torch.no_grad():
-        for batch_idx, original_data_dic in enumerate(tqdm(testloader)):
+        for batch_idx, original_data_dic in enumerate(tqdm(testloader, dynamic_ncols=True)):
             start_time = datetime.datetime.now()
             
             data_dic = {}
