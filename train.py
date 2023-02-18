@@ -47,22 +47,34 @@ def main():
 
     val_dataset = build_dataset(cfg, split='val')
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
-
+    pretrained_state_dict, pretrained_opt_state_dict = None, None
     # Build Network and Optimizer
     net = build_network(cfg)
+    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
+
     if args.pretrained_ckpt is not None:
         pretrained_state_dict = torch.load(args.pretrained_ckpt)['model_state_dict']
+        pretrained_opt_state_dict = torch.load(args.pretrained_ckpt)['optimizer_state_dict']
         for k, v in net.state_dict().items():
-            if(pretrained_state_dict.get(k, None)):
-                if (v.shape != pretrained_state_dict[k].shape):
+            item = pretrained_state_dict.get(k, None)
+            # item_module = pretrained_state_dict.get(f'module.{k}', None)
+
+            if(item is not None):
+                if (v.shape != item.shape):
                     del pretrained_state_dict[k]
+            # elif(item_module is not None):
+            #     print('saved with dataparallel ', v.shape, item_module.shape)
+            #     if (v.shape != item_module.shape):
+            #         del pretrained_state_dict[f'module.{k}']
+            else: 
+                print('KEY NOT FOUND IN LOADED MODEL CHECKPOINT', k)
 
         net.load_state_dict(pretrained_state_dict, strict = False)
 
-    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
-    opt, scheduler = build_optimizer(cfg, net.parameters(), len(train_dataloader))
-
-
+    opt, scheduler = build_optimizer(cfg, net.parameters(), len(train_dataloader))    
+    if(pretrained_opt_state_dict):
+        opt.load_state_dict(pretrained_opt_state_dict)
+    
     from torch.utils.tensorboard import SummaryWriter
     ckpt_dir = cfg.ROOT_DIR / 'experiments' / cfg.DATASET.NAME / args.exp_name / 'ckpt'
     tensorboard_dir = cfg.ROOT_DIR / 'experiments' / cfg.DATASET.NAME / args.exp_name / 'tensorboard'
