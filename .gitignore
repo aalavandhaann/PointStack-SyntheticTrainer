@@ -2,6 +2,7 @@ __pycache__
 build
 data/
 **/experiments/
+slurm*
 utils/PLY
 original-dataset/
 annotation4.json

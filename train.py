@@ -42,16 +42,21 @@ def main():
 
     # Build Dataloader
     train_dataset = build_dataset(cfg, split = 'train')
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 16), pin_memory=True)
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 24), pin_memory=True)
     # train_dataloader = DataLoader(train_dataset, batch_size=cfg.OPTIMIZER.BATCH_SIZE, shuffle=True, drop_last=True, num_workers=12)
 
+    '''
+        Do not have a batch_size of value greater than 1 for the validation dataset. From my observation, the increased batch_size is not 
+        giving a good performance of mIOU and accuracy. Hence, we set the batch_size to 1.
+    '''
     val_dataset = build_dataset(cfg, split='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 16), pin_memory=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 24), pin_memory=True)
 
     # Build Network and Optimizer
     net = build_network(cfg)
     net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
 
+    pretrained_state_dict, pretrained_opt_state_dict = None, None
     if args.pretrained_ckpt is not None:
         pretrained_state_dict = torch.load(args.pretrained_ckpt)['model_state_dict']
         pretrained_opt_state_dict = torch.load(args.pretrained_ckpt)['optimizer_state_dict']
