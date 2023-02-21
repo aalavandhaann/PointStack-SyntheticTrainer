@@ -7,6 +7,12 @@ DATASETS_DIRECTORY = pathlib.Path(__file__).parent.absolute().joinpath('../data/
 TRAINING_FILES_JSON = DATASETS_DIRECTORY.joinpath('train_test_split/shuffled_train_file_list.json')
 TESTING_FILES_JSON = DATASETS_DIRECTORY.joinpath('train_test_split/shuffled_test_file_list.json')
 VALIDATION_FILES_JSON = DATASETS_DIRECTORY.joinpath('train_test_split/shuffled_val_file_list.json')
+SEGMENTATION_LABELS  = [ 'Background', 'Left Hand', 'Right Eye', 'Right Leg', 'Left Eye', 'Left Cheek',
+        'Rest Of Face', 'Right Ear', 'Left Leg', 'Chest', 'Left Ear', 'Left Feet', 
+        'Right Arm', 'Right Hand', 'Forehead', 'Right Cheek', 'Abdomen', 'Lips',
+        'Right Feet', 'Nose', 'Left Arm'
+        ]
+
 
 def getFilesCount(json_path: pathlib.Path) -> tuple:    
     def resolve_path(pathstr: str, json_path: pathlib.Path) -> pathlib.Path:
@@ -59,14 +65,16 @@ if __name__ == '__main__':
     line2 = f'DATASETS DISTRIBUTION PERCENTAGE:-> TRAINING: {(num_training_files/sum_total)*100}%, TESTING: {(num_testing_files/sum_total)*100.0}%, VALIDATION: {(num_validation_files/sum_total)*100}%'
     line3 = f'LABELS :: {all_labels}, MIN: {np.min(all_labels)}, MAX: {np.max(all_labels)}'
     line4 = f'Counts: {all_counts}'
-    line5 = f'Segmentation Distribution %: {(all_counts.astype(float) / float(sum_total_points))*100.0}'
+    line5 = f'Segmentation Labels:  {SEGMENTATION_LABELS}'
+    line6 = f'Segmentation Distribution %: {(all_counts.astype(float) / float(sum_total_points))*100.0}'
 
     print(line1)
     print(line2)
     print(line3)
     print(line4)
     print(line5)
+    print(line6)
 
     f = open('dataset-info.log', 'w')
-    f.write(f'{line1}\n{line2}\n{line3}\n{line4}\n{line5}')
+    f.write(f'{line1}\n{line2}\n{line3}\n{line4}\n{line5}\n{line6}')
     f.close()
