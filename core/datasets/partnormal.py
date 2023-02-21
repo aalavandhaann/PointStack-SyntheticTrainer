@@ -46,9 +46,9 @@ class PartNormal(DatasetTemplate):
                 fns = [fn for fn in fns if fn[0:-4] in val_ids]
             elif split == 'test':
                 fns = [fn for fn in fns if fn[0:-4] in test_ids]
-            else:
-                print('Unknown split: %s. Exiting..' % (split))
-                exit(-1)
+            # else:
+            #     print('Unknown split: %s. Exiting..' % (split))
+            #     exit(-1)
 
             for fn in fns:
                 token = (os.path.splitext(os.path.basename(fn))[0])

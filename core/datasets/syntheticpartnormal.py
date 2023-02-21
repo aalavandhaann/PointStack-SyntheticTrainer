@@ -27,13 +27,16 @@ class SyntheticPartNormal(PartNormal):
 
         with open(os.path.join(self.root, 'train_test_split', 'shuffled_test_file_list.json'), 'r') as f:
             test_ids = set([str(d.split('/')[2]) for d in json.load(f)])
+        
+        with open(os.path.join(self.root, 'train_test_split', 'shuffled_real_file_list.json'), 'r') as f:
+            real_ids = set([str(d.split('/')[2]) for d in json.load(f)])
 
         for item in self.cat:
             self.meta[item] = []
             dir_point: pathlib.Path = pathlib.Path(os.path.join(self.root, self.cat[item]))
             # fns = sorted(os.listdir(dir_point))
             fns = sorted(list(dir_point.glob('**/*')))
-
+            
             if split == 'trainval':
                 fns = [fn for fn in fns if ((fn.stem in train_ids) or (fn[0:-4] in val_ids))]
             elif split == 'train':
@@ -42,9 +45,11 @@ class SyntheticPartNormal(PartNormal):
                 fns = [fn for fn in fns if fn.stem in val_ids]
             elif split == 'test':
                 fns = [fn for fn in fns if fn.stem in test_ids]
-            else:
-                print('Unknown split: %s. Exiting..' % (split))
-                exit(-1)
+            elif split == 'real':
+                fns = [fn for fn in fns if fn.stem in real_ids]
+            # else:
+            #     print('Unknown split: %s. Exiting..' % (split))
+            #     exit(-1)
 
             for fn in fns:
                 token = fn.stem#(os.path.splitext(os.path.basename(fn))[0])
@@ -85,6 +90,7 @@ class SyntheticPartNormal(PartNormal):
             point_set = data[:, 0:3]
             normal = data[:, 3:6]
             seg = data[:, -1].astype(np.int32)
+
             if len(self.cache) < self.cache_size:
                 self.cache[index] = (point_set, normal, seg, cls)       
 
