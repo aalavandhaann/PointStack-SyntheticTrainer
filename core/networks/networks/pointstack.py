@@ -48,8 +48,9 @@ class PointStack(NetworkTemplate):
 
         return loss, loss_dict
 
-    def compute_overall_iou(self, pred, target, num_classes):
-        shape_ious = []
+    def compute_overall_iou(self, pred, target, num_classes,*,part_wise_ious=False):
+        shape_ious = [[0] for i in range(num_classes)] 
+        shape_ious_mean = []
         pred = pred.max(dim=2)[1]    # (batch_size, num_points)
         pred_np = pred.cpu().data.numpy()
 
@@ -65,5 +66,13 @@ class PointStack(NetworkTemplate):
                 if F != 0:
                     iou = I / float(U)    
                     part_ious.append(iou)   
-            shape_ious.append(np.mean(part_ious))  
-        return shape_ious   # [batch_size]
+                    shape_ious[part].append(iou)
+
+            shape_ious_mean.append(np.mean(part_ious))  
+
+        if(part_wise_ious):
+            for i,shape_iou in enumerate(shape_ious):
+                shape_ious[i] = float("%.3f" % (np.mean(shape_iou)))
+            return shape_ious_mean, np.array(shape_ious)
+        else:
+            return shape_ious_mean   # [batch_size]

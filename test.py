@@ -29,6 +29,11 @@ def parse_config():
 def main():
     args, cfg = parse_config()
     exp_dir = ('/').join(args.ckpt.split('/')[:-2])
+    segmentation_parts = [
+        'Background', 'Left Hand', 'Right Eye', 'Right Leg', 'Left Eye', 'Left Cheek',
+        'Rest Of Face', 'Right Ear', 'Left Leg', 'Chest', 'Left Ear', 'Left Feet', 'Right Arm',
+        'Right Hand', 'Forehead', 'Right Cheek', 'Abdomen', 'Lips', 'Right Feet', 'Nose', 'Left Arm'
+        ]
 
     random_seed = cfg.RANDOM_SEED # Setup seed for reproducibility
     torch.manual_seed(random_seed)
@@ -37,22 +42,23 @@ def main():
     random.seed(random_seed)
 
     # Build Dataloader
-    val_dataset = build_dataset(cfg, split='val')
-    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
+    val_dataset = build_dataset(cfg, split='test')
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 1), pin_memory=True)
 
     # Build Network and Optimizer
     net = build_network(cfg)
+    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
+
     state_dict = torch.load(args.ckpt)
+
+
     epoch = state_dict['epoch']
     net.load_state_dict(state_dict['model_state_dict'])
-
-    # net = net.cuda()
-    net, device = get_nn_module_cuda(net, cfg.GPU_COUNT)
     net.eval()
 
     print('Evaluating Epoch: ', epoch)
     # Try using the multi-gpu network, if error, then use the single gpu net as handled in the except
-    val_dict = validate(net, val_dataloader, get_method(net, 'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
+    val_dict = validate(net, val_dataloader, get_method(net, 'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS, part_wise_ious=True)
 
     if cfg.DATASET.IS_SEGMENTATION:
         miou = np.round(val_dict['miou'], 4)
@@ -72,6 +78,9 @@ def main():
         with open(exp_dir + '/eval_best.txt', 'w') as f:
             f.write('Best Epoch: ' + str(epoch))
             f.write('\nBest miou: ' + str(miou))
+            for i, part_iou in enumerate(val_dict['miou_class_wise']):
+                part_name = segmentation_parts[i]
+                f.write(f'\n{part_name}: {part_iou}')
 
     else:
         with open(exp_dir + '/eval_best.txt', 'w') as f:
@@ -81,7 +90,7 @@ def main():
             f.write('\nBest Loss: ' + str(val_loss))
 
 
-    torch.save(state_dict['model_state_dict'], exp_dir + '/ckpt_model_only.pth')
+    # torch.save(state_dict['model_state_dict'], exp_dir + '/ckpt_model_only.pth')
 
 if __name__ == '__main__':
     import torch.multiprocessing

@@ -107,7 +107,7 @@ def get_n_params(model):
         pp += nn
     return pp
 
-def validate(net, testloader, criterion, device, is_segmentation = False, num_classes=50):
+def validate(net, testloader, criterion, device, is_segmentation = False, num_classes=50, *, part_wise_ious=False):
     net.eval()
     num_params = get_n_params(net)
 
@@ -118,10 +118,12 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
     test_pred = []
     time_cost = []
     mious = []
+    all_part_iou = np.zeros((0, num_classes), dtype=float)
 
     accuracy = []
     shape_ious = 0.0
     count  = 0.0
+
     with torch.no_grad():
         for batch_idx, original_data_dic in enumerate(tqdm(testloader, dynamic_ncols=True)):
             start_time = datetime.datetime.now()
@@ -139,8 +141,11 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
               
 
             if is_segmentation:
-                miou = get_method(net, 'compute_overall_iou')(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = num_classes)
-                
+                if(part_wise_ious):
+                    miou, all_part_iou_values = get_method(net, 'compute_overall_iou')(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = num_classes, part_wise_ious=True)
+                else:
+                    miou = get_method(net, 'compute_overall_iou')(data_dic['pred_score_logits'], data_dic['seg_id'], num_classes = num_classes)
+                   
                 # total iou of current batch in each process:
                 batch_ious = data_dic['pred_score_logits'].new_tensor([np.sum(miou)], dtype=torch.float64)  # same device with seg_pred
 
@@ -157,7 +162,8 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
                 count += data_dic['pred_score_logits'].shape[0]  # count the total number of samples in each iteration
                 accuracy.append(correct.item() / (data_dic['pred_score_logits'].shape[0] * data_dic['points'].shape[1]))  # append the accuracy of each iteration
                 mious.append(miou)
-
+                if(part_wise_ious):
+                    all_part_iou = np.vstack((all_part_iou, all_part_iou_values))
             else:
                 preds = data_dic['pred_score_logits'].max(dim=1)[1]
                 test_true.append(data_dic['cls_id'].cpu().numpy())
@@ -167,8 +173,6 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
                 loss, loss_dict = criterion(data_dic)
                 test_loss += loss.item()
         
-        
-
         total_samples = len(time_cost)
         time_cost = np.mean(time_cost[total_samples//5:total_samples*4//5])
         
@@ -176,6 +180,7 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
             overall_miou = np.mean(mious)
             overall_acc = np.mean(accuracy)
             overall_ins_acc = shape_ious * 1.0 / count
+            
             try:
                 miou = float("%.3f" % (100. * overall_miou))
             except TypeError:
@@ -185,9 +190,11 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
                 accuracy = float("%.3f" % (100. * overall_acc))
             except TypeError:
                 accuracy = float("%.3f" % (100. * overall_acc[0]))
-
+            if(not part_wise_ious):
+                all_part_iou = np.zeros((1, num_classes), dtype=float)
             return {
                     "miou": miou,
+                    "miou_class_wise": np.mean(all_part_iou, axis=0)*100.0,
                     "accuracy": accuracy, 
                     "time": time_cost,
                     "num_params": num_params,

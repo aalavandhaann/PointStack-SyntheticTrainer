@@ -4,9 +4,9 @@ import json
 import numpy as np
 import tqdm
 import sklearn.model_selection
+import open3d as o3d
 
 from easydict import EasyDict
-
 from runtime_utils import cfg, cfg_from_yaml_file
 
 CONFIG_YAML_FILE: pathlib.Path = pathlib.Path('../cfgs/syntheticpartnormal/syntheticpartnormal.yaml')
@@ -27,10 +27,22 @@ def prepareDataSet(ply_files: pathlib.Path.glob, dataset_destination_dir: pathli
         dataset_json_entry = f'shape_data/{destination_dir.name}/{save_dataset_path.stem}'
 
         if(not save_dataset_path.exists()):
-            np_data = np.loadtxt(ply_file, skiprows=12)
-            np_data = np_data[np_data[:,-1] > 0]
+            loaded_np_data = np.loadtxt(ply_file, skiprows=12)
+            np_data = loaded_np_data[loaded_np_data[:,-1] > 0]
             if(np_data.shape[0]):
-                np.savetxt(save_dataset_path, np_data, fmt='%f')
+                background_points = loaded_np_data[loaded_np_data[:,-1] < 1]
+                random_bg_points = background_points[np.random.choice(len(background_points), size=min(background_points.shape[0], 2000), replace=False)]
+                
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(np_data[:,:3])
+                pcd.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.01, max_nn=10))
+                pcd.orient_normals_consistent_tangent_plane(10)
+
+                np_data[:,:3] = np.asarray(pcd.points)
+                np_data[:,3:6] = np.asarray(pcd.normals)
+                np_data = np.vstack((np_data, random_bg_points))
+
+                np.savetxt(save_dataset_path, np_data, fmt='%f %f %f %f %f %f %f')
             else:
                 dataset_json_entry = None          
         if(dataset_json_entry):
@@ -60,8 +72,8 @@ def prepareDataSet(ply_files: pathlib.Path.glob, dataset_destination_dir: pathli
     # Now split the training_temp data to training, and validation (e.g 0.2, 0.1)
     data_test, data_val, _, _ = sklearn.model_selection.train_test_split(data_test_temp, data_test_temp, test_size= split[2] / (split[1] + split[2]), random_state=config.RANDOM_SEED)
     
-    # if(dataset_destination_dir.exists()):
-    #     shutil.rmtree(dataset_destination_dir, ignore_errors=True)
+    if(dataset_destination_dir.exists()):
+        shutil.rmtree(dataset_destination_dir, ignore_errors=True)
     
     if(train_test_split_dir.exists()):
         shutil.rmtree(train_test_split_dir, ignore_errors=True)
@@ -72,13 +84,13 @@ def prepareDataSet(ply_files: pathlib.Path.glob, dataset_destination_dir: pathli
     if(not train_test_split_dir.exists()):
         train_test_split_dir.mkdir(parents=True, exist_ok=True)
 
-    for i, ply_file in tqdm.tqdm(enumerate(data_train), desc='Training Datasets...'):
+    for ply_file in tqdm.tqdm(data_train, desc='Training Datasets...', dynamic_ncols=True):
         _, _ = saveNPAndAppend(ply_file, dataset_destination_dir, shuffled_train_list)
     
-    for i, ply_file in tqdm.tqdm(enumerate(data_test), desc='Testing Datasets...'):
+    for ply_file in tqdm.tqdm(data_test, desc='Testing Datasets...', dynamic_ncols=True):
         _, _ = saveNPAndAppend(ply_file, dataset_destination_dir, shuffled_test_list)
 
-    for i, ply_file in tqdm.tqdm(enumerate(data_val), desc='Validation Datasets...'):
+    for ply_file in tqdm.tqdm(data_val, desc='Validation Datasets...', dynamic_ncols=True):
         _, _ = saveNPAndAppend(ply_file, dataset_destination_dir, shuffled_val_list)
     
     saveJSON(shuffled_train_file_list_json, shuffled_train_list)
