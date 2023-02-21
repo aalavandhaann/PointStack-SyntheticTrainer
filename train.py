@@ -49,7 +49,7 @@ def main():
         Do not have a batch_size of value greater than 1 for the validation dataset. From my observation, the increased batch_size is not 
         giving a good performance of mIOU and accuracy. Hence, we set the batch_size to 1.
     '''
-    val_dataset = build_dataset(cfg, split='val')
+    val_dataset = build_dataset(cfg, split='test')
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 24), pin_memory=True)
 
     # Build Network and Optimizer
