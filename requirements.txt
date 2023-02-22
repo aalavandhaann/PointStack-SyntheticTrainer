@@ -10,4 +10,5 @@ scipy
 open3d
 easydict
 tensorboard
+pymeshlab
 pointnet2_ops_lib/.

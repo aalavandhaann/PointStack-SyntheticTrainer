@@ -53,7 +53,7 @@ class SyntheticPartNormal(PartNormal):
 
             for fn in fns:
                 token = fn.stem#(os.path.splitext(os.path.basename(fn))[0])
-                self.meta[item].append(os.path.join(dir_point, token + '.txt'))
+                self.meta[item].append(os.path.join(dir_point, token + '.npy'))
 
         self.datapath = []
         for item in self.cat:
@@ -86,7 +86,7 @@ class SyntheticPartNormal(PartNormal):
             cat = self.datapath[index][0]
             cls = self.classes[cat]
             cls = np.array([cls]).astype(np.int32)
-            data = np.loadtxt(fn[1]).astype(np.float32)
+            data = np.load(fn[1]).astype(np.float32)
             point_set = data[:, 0:3]
             normal = data[:, 3:6]
             seg = data[:, -1].astype(np.int32)
