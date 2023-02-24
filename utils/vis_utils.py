@@ -25,7 +25,7 @@ def visualize_numpy(pc_numpy, colors = None, window_name='3D Window'):
     
     # o3d.visualization.draw_geometries([point_cloud])
     
-def visualize_part(net, testloader):
+def visualize_part(net, testloader, fulldataset):
     # color_choices = [(1, 0, 0), (0, 1, 0), (0, 0, 1), (1, 1, 0), #3
     #                  (1, 0, 0), (0, 1, 0), #5
     #                  (1, 0, 0), (0, 1, 0), #7

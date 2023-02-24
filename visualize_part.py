@@ -34,7 +34,7 @@ def main():
 
 
     # Build Dataloader
-    val_dataset = build_dataset(cfg, split='real')
+    val_dataset = build_dataset(cfg, split='real', segmentation_selection=[4])
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
 
     # Build Network
@@ -47,9 +47,9 @@ def main():
     net.eval()
 
     print('Evaluating Epoch: ', epoch)
-    visualize_part(net, val_dataloader)
+    visualize_part(net, val_dataloader, val_dataset)
 
 if __name__ == '__main__':
-    import torch.multiprocessing
-    torch.multiprocessing.set_start_method("spawn", force=False)
+    # import torch.multiprocessing
+    # torch.multiprocessing.set_start_method("spawn", force=False)
     main()
