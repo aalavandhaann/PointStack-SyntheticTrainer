@@ -34,7 +34,7 @@ def main():
 
 
     # Build Dataloader
-    val_dataset = build_dataset(cfg, split='test')
+    val_dataset = build_dataset(cfg, split='real')
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 8), pin_memory=True)
 
     # Build Network

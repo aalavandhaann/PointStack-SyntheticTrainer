@@ -87,7 +87,7 @@ def visualize_part(net, testloader):
     with torch.no_grad():
         for batch_idx, original_data_dic in enumerate(tqdm(testloader)):
             # if ((batch_idx % 10 == 0) and (batch_idx > 1260)):
-            if ((batch_idx % 10 == 0)):
+            if ((batch_idx % 1 == 0)):
                 data_dic = {}
                 device = get_device()
                 for dkey in original_data_dic.keys():

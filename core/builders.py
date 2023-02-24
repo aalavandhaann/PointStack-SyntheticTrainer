@@ -9,8 +9,8 @@ def build_network(cfg, topology = None):
 
     return net
 
-def build_dataset(cfg, split = 'train'):
-    Dataset = datasets.__all__[cfg.DATASET.NAME](cfg, split = split)
+def build_dataset(cfg, split = 'train', **kwargs):
+    Dataset = datasets.__all__[cfg.DATASET.NAME](cfg, split = split, **kwargs)
     return Dataset
 
 def build_optimizer(cfg, params, data_loader_length, mode = None):

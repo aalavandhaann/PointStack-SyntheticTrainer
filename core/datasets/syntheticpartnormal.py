@@ -13,11 +13,12 @@ from .partnormal import PartNormal
 from utils.runtime_utils import get_device
 
 class SyntheticPartNormal(PartNormal):
-    def __init__(self, cfg, class_choice=None, split='train', load_name=True, load_file=True, random_rotate=False, random_jitter=False, random_translate=False):
+    def __init__(self, cfg, class_choice=None, split='train', load_name=True, load_file=True, random_rotate=False, random_jitter=False, random_translate=False, segmentation_selection: list = []):
         super().__init__(cfg = cfg, class_choice=None, split=split, load_name=True, load_file=True, random_rotate=False, random_jitter=False, random_translate=False)
         
         
         self.meta = {}
+        self.segmentation_selection = segmentation_selection
 
         with open(os.path.join(self.root, 'train_test_split', 'shuffled_train_file_list.json'), 'r') as f:
             train_ids = set([str(d.split('/')[2]) for d in json.load(f)])
@@ -88,6 +89,11 @@ class SyntheticPartNormal(PartNormal):
             cls = self.classes[cat]
             cls = np.array([cls]).astype(np.int32)
             data = np.load(fn[1]).astype(np.float32)
+            if(len(self.segmentation_selection) and data.shape[1] > 6):
+                query_result = data[np.isin(data[:,-1], self.segmentation_selection)] 
+                if(query_result.shape[0]):
+                    data = query_result
+                
             point_set = data[:, 0:3]
             normal = data[:, 3:6]
             seg = data[:, -1].astype(np.int32)

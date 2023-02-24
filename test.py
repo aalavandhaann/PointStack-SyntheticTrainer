@@ -29,11 +29,7 @@ def parse_config():
 def main():
     args, cfg = parse_config()
     exp_dir = ('/').join(args.ckpt.split('/')[:-2])
-    segmentation_parts = [
-        'Background', 'Left Hand', 'Right Eye', 'Right Leg', 'Left Eye', 'Left Cheek',
-        'Rest Of Face', 'Right Ear', 'Left Leg', 'Chest', 'Left Ear', 'Left Feet', 'Right Arm',
-        'Right Hand', 'Forehead', 'Right Cheek', 'Abdomen', 'Lips', 'Right Feet', 'Nose', 'Left Arm'
-        ]
+    segmentation_parts = ['background', 'arm', 'leg', 'face', 'thorax']
 
     random_seed = cfg.RANDOM_SEED # Setup seed for reproducibility
     torch.manual_seed(random_seed)
@@ -42,7 +38,7 @@ def main():
     random.seed(random_seed)
 
     # Build Dataloader
-    val_dataset = build_dataset(cfg, split='test')
+    val_dataset = build_dataset(cfg, split='val', segmentation_selection=[4])
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 1), pin_memory=True)
 
     # Build Network and Optimizer
