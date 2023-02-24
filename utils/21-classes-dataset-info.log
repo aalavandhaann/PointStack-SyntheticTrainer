@@ -1,0 +1,14 @@
+DATASETS INFO:-> TRAINING: 13439, TESTING: 3840, VALIDATION: 1921, SUM TOTAL: 19200
+DATASETS DISTRIBUTION PERCENTAGE:-> TRAINING: 69.99479166666667%, TESTING: 20.0%, VALIDATION: 10.005208333333334%
+LABELS :: [ 0.  1.  2.  3.  4.  5.  6.  7.  8.  9. 10. 11. 12. 13. 14. 15. 16. 17.
+ 18. 19. 20.], MIN: 0.0, MAX: 20.0
+Counts: [3.0000e+04 6.3180e+03 1.1160e+03 8.3651e+04 3.4300e+02 5.3700e+02
+ 1.9287e+04 1.8680e+03 5.9876e+04 4.3816e+04 2.4000e+01 8.1850e+03
+ 2.6695e+04 8.6920e+03 7.5590e+03 5.8860e+03 5.9032e+04 6.3800e+02
+ 6.8000e+03 6.7300e+02 1.6319e+04]
+Segmentation Labels:  [
+'Background', 'Left Hand', 'Right Eye', 'Right Leg', 'Left Eye', 
+'Left Cheek', 'Rest Of Face', 'Right Ear', 'Left Leg', 'Chest', 
+'Left Ear', 'Left Feet', 'Right Arm', 'Right Hand', 'Forehead', 
+'Right Cheek', 'Abdomen', 'Lips', 'Right Feet', 'Nose', 'Left Arm']
+Segmentation Distribution %: [ 7  1  0 21  0  0  4  0 15 11  0  2  6  2  1  1 15  0  1  0  4]

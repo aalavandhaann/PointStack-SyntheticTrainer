@@ -3,6 +3,8 @@ import numpy as np
 import json
 import tqdm
 
+import matplotlib.pyplot as plt
+
 DATASETS_DIRECTORY = pathlib.Path(__file__).parent.absolute().joinpath('../data/syntheticpartnormal/').absolute()
 TRAINING_FILES_JSON = DATASETS_DIRECTORY.joinpath('train_test_split/shuffled_train_file_list.json')
 TESTING_FILES_JSON = DATASETS_DIRECTORY.joinpath('train_test_split/shuffled_test_file_list.json')
@@ -12,6 +14,10 @@ SEGMENTATION_LABELS  = [ 'Background', 'Left Hand', 'Right Eye', 'Right Leg', 'L
         'Right Arm', 'Right Hand', 'Forehead', 'Right Cheek', 'Abdomen', 'Lips',
         'Right Feet', 'Nose', 'Left Arm'
         ]
+
+REDUCED_SEGMENTATION_CATEGORIES: list = [
+        'background', 'arm', 'leg', 'face', 'thorax'
+]
 
 
 class DatasetInfo():
@@ -47,9 +53,9 @@ class DatasetInfo():
         _, self._num_testing_files = self._getFilesCount(self._testing_json)
         _, self._num_validation_files = self._getFilesCount(self._validation_json)
 
-        training_labels, training_counts, total_training_points = self._getLabelsInDataset(TRAINING_FILES_JSON)
-        testing_labels, testing_counts, total_testing_points = self._getLabelsInDataset(TESTING_FILES_JSON)
-        validation_labels, validation_counts, total_validation_points = self._getLabelsInDataset(VALIDATION_FILES_JSON)
+        training_labels, training_counts, total_training_points = self._getLabelsInDataset(TRAINING_FILES_JSON, num_classes=len(self._segmentation_labels))
+        testing_labels, testing_counts, total_testing_points = self._getLabelsInDataset(TESTING_FILES_JSON, num_classes=len(self._segmentation_labels))
+        validation_labels, validation_counts, total_validation_points = self._getLabelsInDataset(VALIDATION_FILES_JSON, num_classes=len(self._segmentation_labels))
 
         self._sum_total_files = self._num_training_files + self._num_testing_files + self._num_validation_files
         self._sum_total_points = total_training_points + total_testing_points + total_validation_points
@@ -66,6 +72,10 @@ class DatasetInfo():
         def resolve_path(pathstr: str, json_path: pathlib.Path) -> pathlib.Path:
             temppath = pathlib.Path(pathstr)
             actual_path: pathlib.Path = json_path.parents[1].joinpath(temppath.parts[-2], f'{temppath.parts[-1]}.txt')
+            if(not actual_path.exists()):
+                actual_path = json_path.parents[1].joinpath(temppath.parts[-2], f'{temppath.parts[-1]}.npy')
+            if(not actual_path.exists()):
+                raise FileNotFoundError(f'File: {actual_path} does not exist')
             return actual_path
             
         f = open(json_path, 'r')
@@ -80,14 +90,15 @@ class DatasetInfo():
         np_labels = np.array([])
         np_counts = np.zeros((num_classes))
         total_points = 0
-        for i, pointcloudpath in tqdm.tqdm(enumerate(jsdata), dynamic_ncols=True):
-            np_data = np.loadtxt(pointcloudpath) 
+        for i, pointcloudpath in tqdm.tqdm(enumerate(jsdata), total = len(jsdata), dynamic_ncols=True):
+            if(pointcloudpath.suffix == '.txt'):
+                np_data = np.loadtxt(pointcloudpath) 
+            else:
+                np_data = np.load(pointcloudpath) 
             values, counts = np.unique(np_data[:, -1], return_counts=True)
             np_labels = np.append(np_labels, values)
             np_counts[values.astype(int)] += counts
             total_points += np_data.shape[0]
-            if(i > 3):
-                break
 
         return np_labels, np_counts, total_points
 
@@ -98,7 +109,7 @@ class DatasetInfo():
         return training_distribution, testing_distribution, validation_distribution
     
     def _distributionPoints(self) -> np.ndarray:
-        return ((self._count_segmentation_labels.astype(float) / float(self._sum_total_points))*100.0).astype(int)
+        return ((self._count_segmentation_labels.astype(float) / float(self._sum_total_points))*100.0)
 
     def __str__(self) -> str:
         train_percent, test_percent, validate_percent = self._distribution()
@@ -106,7 +117,7 @@ class DatasetInfo():
         line2 = f'DATASETS DISTRIBUTION PERCENTAGE:-> TRAINING: {train_percent}%, TESTING: {test_percent}%, VALIDATION: {validate_percent}%'
         line3 = f'LABELS :: {self._labels_in_dataset}, MIN: {np.min(self._labels_in_dataset)}, MAX: {np.max(self._labels_in_dataset)}'
         line4 = f'Counts: {self._count_segmentation_labels}'
-        line5 = f'Segmentation Labels:  {SEGMENTATION_LABELS}'
+        line5 = f'Segmentation Labels:  {self._segmentation_labels}'
         line6 = f'Segmentation Distribution %: {self._distributionPoints()}'
 
         return f'{line1}\n{line2}\n{line3}\n{line4}\n{line5}\n{line6}'
@@ -118,11 +129,19 @@ class DatasetInfo():
         f.close()
         return file_path
     
-    def graph(self, name: str, destination_dir: pathlib.Path, mode: str = 'files'):
-        if(mode == 'files'):
-            files_distribution = np.ndarray(self._distribution())
-        elif (mode == 'points'):
-            points_distribution = self._distributionPoints()
+    def saveGraph(self, name: str, destination_dir: pathlib.Path):
+        # Data set
+        height = self._distributionPoints()
+        bars = self._segmentation_labels
+        y_pos = np.arange(len(bars))
+
+        # Basic plot
+        plt.bar(y_pos, height, color=(0.2, 0.4, 0.6, 0.6))
+        
+        # use the plt.xticks function to custom labels
+        plt.xticks(y_pos, bars, color='orange', rotation=15, fontweight='bold', fontsize='12', horizontalalignment='right')
+        plt.savefig(destination_dir.joinpath(f'{name}.svg'))
+
 
 
 
@@ -130,11 +149,11 @@ class DatasetInfo():
 
 if __name__ == '__main__':
 
-    d: DatasetInfo = DatasetInfo(SEGMENTATION_LABELS, TRAINING_FILES_JSON, TESTING_FILES_JSON, VALIDATION_FILES_JSON)
+    d: DatasetInfo = DatasetInfo(REDUCED_SEGMENTATION_CATEGORIES, TRAINING_FILES_JSON, TESTING_FILES_JSON, VALIDATION_FILES_JSON)
     # d.saveLOG(DATASETS_DIRECTORY.stem, pathlib.Path(__file__))
-    d.saveLOG('HELLO', pathlib.Path(__file__).parent)
-    
-    
+    d.saveLOG('5-classes-', pathlib.Path(__file__).parent)
+    d.saveGraph('5-classes', pathlib.Path(__file__).parent)
+
     # f = open(f'{DATASETS_DIRECTORY.stem}-dataset-info.log', 'w')
     # f.write(f'{line1}\n{line2}\n{line3}\n{line4}\n{line5}\n{line6}')
     # f.close()

@@ -62,7 +62,8 @@ class SyntheticPartNormal(PartNormal):
 
         self.classes = dict(zip(self.cat, range(len(self.cat))))           
         
-        self.seg_classes = {'Others': 0, 'Body-Parts': [i+1 for i in range(20)]}
+        # self.seg_classes = {'Others': 0, 'Body-Parts': [i+1 for i in range(20)]}
+        self.seg_classes = {'background': 0, 'arm': 1, 'leg': 2, 'face':3, 'thorax': 4}
 
         self.cache = {}  # from index to (point_set, cls, seg) tuple
         self.cache_size = 2500
