@@ -48,29 +48,37 @@ def visualize_part(net, testloader):
     #     'Rest Of Face', 'Right Ear', 'Left Leg', 'Chest', 'Left Ear', 'Left Feet', 'Right Arm',
     #     'Right Hand', 'Forehead', 'Right Cheek', 'Abdomen', 'Lips', 'Right Feet', 'Nose', 'Left Arm'
     #     ]
+    # color_choices_np = np.array(
+    #     [
+    #         [0,	0,	0, 255],#	Background
+    #         [0,	0,	204, 255],#	Left Hand
+    #         [0,	0,	255, 255],#	Right Eye
+    #         [0,	102,	0, 255],#	Right Leg
+    #         [0,	255,	0, 255],#	Left Eye
+    #         [0,	255,	255, 255],#	Left Cheek
+    #         [128,	128,	128, 255],#	RestOfFace
+    #         [135,	206,	250, 255],#	Right Ear
+    #         [139,	0,	0, 255],#	Left Leg
+    #         [139,	69,	19, 255],#	Chest
+    #         [144,	238,	144, 255],#	Left Ear
+    #         [192,	192,	192, 255],#	Left Feet
+    #         [240,	230,	140, 255],#	RightArm
+    #         [245,	245,	220, 255],#	Right Hand
+    #         [255,	0,	0, 255],#	Forehead
+    #         [255,	0,	255, 255],#	Right Cheek
+    #         [255,	153,	0, 255],#	Abdomen
+    #         [255,	204,	153, 255],#	Lips
+    #         [255,	215,	0, 255],#	Right Feet
+    #         [255,	255,	0, 255],#	Nose
+    #         [255,	255,	240, 255],#	Left Arm
+    #     ], dtype=float)
     color_choices_np = np.array(
         [
             [0,	0,	0, 255],#	Background
-            [0,	0,	204, 255],#	Left Hand
-            [0,	0,	255, 255],#	Right Eye
-            [0,	102,	0, 255],#	Right Leg
-            [0,	255,	0, 255],#	Left Eye
-            [0,	255,	255, 255],#	Left Cheek
-            [128,	128,	128, 255],#	RestOfFace
-            [135,	206,	250, 255],#	Right Ear
-            [139,	0,	0, 255],#	Left Leg
-            [139,	69,	19, 255],#	Chest
-            [144,	238,	144, 255],#	Left Ear
-            [192,	192,	192, 255],#	Left Feet
-            [240,	230,	140, 255],#	RightArm
-            [245,	245,	220, 255],#	Right Hand
-            [255,	0,	0, 255],#	Forehead
-            [255,	0,	255, 255],#	Right Cheek
-            [255,	153,	0, 255],#	Abdomen
-            [255,	204,	153, 255],#	Lips
-            [255,	215,	0, 255],#	Right Feet
-            [255,	255,	0, 255],#	Nose
-            [255,	255,	240, 255],#	Left Arm
+            [255,	0,	0, 255],#	Arm
+            [0,	255,	0, 255],#	Leg
+            [0,	0,	255, 255],#	Face
+            [255,	128,	0, 255],#	Thorax
         ], dtype=float)
     color_choices = color_choices_np[:,:3] / 255.0
 

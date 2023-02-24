@@ -145,7 +145,7 @@ def main():
             # Check if the network is multi-gpu, otherwise use the single-gpu network as handled in exception
             val_dict = validate(net, val_dataloader, get_method(net,'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
             
-            print('='*20, 'Epoch ' + str(epoch+1), '='*20)
+            print(f'\n{"="*20} Epoch {epoch+1} {"="*20}')
 
             if cfg.DATASET.IS_SEGMENTATION:
                 writer.add_scalar('epochs/val_miou', val_dict['miou'], epoch_cnt)
