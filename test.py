@@ -30,6 +30,7 @@ def main():
     args, cfg = parse_config()
     exp_dir = ('/').join(args.ckpt.split('/')[:-2])
     segmentation_parts = ['background', 'arm', 'leg', 'face', 'thorax']
+    segmentation_selection = [0, 1, 2, 3, 4]
 
     random_seed = cfg.RANDOM_SEED # Setup seed for reproducibility
     torch.manual_seed(random_seed)
@@ -38,7 +39,7 @@ def main():
     random.seed(random_seed)
 
     # Build Dataloader
-    val_dataset = build_dataset(cfg, split='val', segmentation_selection=[4])
+    val_dataset = build_dataset(cfg, split='val', segmentation_selection=segmentation_selection)
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False, drop_last=False, num_workers=min(cfg.OPTIMIZER.BATCH_SIZE, 1), pin_memory=True)
 
     # Build Network and Optimizer

@@ -67,7 +67,7 @@ class SyntheticPartNormal(PartNormal):
         self.seg_classes = {'background': 0, 'arm': 1, 'leg': 2, 'face':3, 'thorax': 4}
 
         self.cache = {}  # from index to (point_set, cls, seg) tuple
-        self.cache_size = 2500
+        self.cache_size = 20000
         self.device = get_device()
 
     def __len__(self):
