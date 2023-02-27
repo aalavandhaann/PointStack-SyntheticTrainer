@@ -3,7 +3,7 @@
 #SBATCH --gres=gpu:4       # Request GPU "generic resources"
 #SBATCH --cpus-per-task=24  # Refer to cluster's documentation for the right CPU/GPU ratio
 #SBATCH --mem=47000M       # Memory proportional to GPUs: 32000 Cedar, 47000 Béluga, 64000 Graham.
-#SBATCH --time=02-15:30:00     # DD-HH:MM:SS
+#SBATCH --time=00-46:00:00     # DD-HH:MM:SS
 #SBATCH --mail-user=srinivasan.ramachandran.1@ens.etsmtl.ca
 #SBATCH --mail-type=ALL
 
