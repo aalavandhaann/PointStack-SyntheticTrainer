@@ -44,10 +44,10 @@ class LinearSegmentator(nn.Module):
         cls_tokens = to_categorical(cls_tokens, 16) # (B, 1, 16)
         cls_tokens = self.cls_map(cls_tokens.permute(0, 2, 1)) # B, 1, 64
 
-        logits = data_dic['point_features']
-        logits = torch.cat([logits, cls_tokens.repeat(1, 1, logits.shape[-1])], dim = 1)
+        point_features = data_dic['point_features']
+        point_features = torch.cat([point_features, cls_tokens.repeat(1, 1, point_features.shape[-1])], dim = 1)
 
         for cur_module in self.segmentator:
-            logits = cur_module(logits)
-        data_dic['pred_score_logits'] = logits.permute(0,2,1)
+            point_features = cur_module(point_features)
+        data_dic['pred_score_logits'] = point_features.permute(0,2,1)
         return data_dic
