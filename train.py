@@ -143,7 +143,7 @@ def main():
         
         if (epoch % args.val_steps) == 0:
             # Check if the network is multi-gpu, otherwise use the single-gpu network as handled in exception
-            val_dict = validate(net, val_dataloader, get_method(net,'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS)
+            val_dict = validate(net, val_dataloader, get_method(net,'get_loss'), device, is_segmentation = cfg.DATASET.IS_SEGMENTATION, num_classes = cfg.DATASET.NUM_CLASS, part_wise_ious=True)
             
             print(f'\n{"="*20} Epoch {epoch+1} {"="*20}')
 
@@ -151,6 +151,10 @@ def main():
                 writer.add_scalar('epochs/val_miou', val_dict['miou'], epoch_cnt)
                 writer.add_scalar('epochs/val_accuracy', val_dict.get('accuracy', 0), epoch_cnt)
                 print('Val mIoU: ', val_dict['miou'])
+                part_wise_ious = val_dict['miou_part_wise']#getattr(val_dict, )
+                for part_id, part_miou in enumerate(part_wise_ious):
+                    writer.add_scalar(f'epochs/val_miou_{train_dataset.seg_classes_list[part_id]}', part_miou, epoch_cnt)
+                    print(f'Val mIoU({train_dataset.seg_classes_list[part_id]}): {part_miou}')
     
             else:
                 writer.add_scalar('epochs/val_loss', val_dict['loss'], epoch_cnt)

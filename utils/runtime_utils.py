@@ -194,7 +194,7 @@ def validate(net, testloader, criterion, device, is_segmentation = False, num_cl
                 all_part_iou = np.zeros((1, num_classes), dtype=float)
             return {
                     "miou": miou,
-                    "miou_class_wise": np.mean(all_part_iou, axis=0)*100.0,
+                    "miou_part_wise": np.mean(all_part_iou, axis=0)*100.0,
                     "accuracy": accuracy, 
                     "time": time_cost,
                     "num_params": num_params,

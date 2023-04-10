@@ -64,7 +64,8 @@ class SyntheticPartNormal(PartNormal):
         self.classes = dict(zip(self.cat, range(len(self.cat))))           
         
         # self.seg_classes = {'Others': 0, 'Body-Parts': [i+1 for i in range(20)]}
-        self.seg_classes = {'background': 0, 'arm': 1, 'leg': 2, 'face':3, 'thorax': 4}
+        self.seg_classes = {'background': 0, 'arms': 2, 'legs': 3, 'face':1, 'thorax': 4}
+        self.seg_classes_list = {0: 'background', 2: 'arms', 3: 'legs', 1: 'face', 4: 'thorax'}
 
         self.cache = {}  # from index to (point_set, cls, seg) tuple
         self.cache_size = 20000
@@ -89,10 +90,10 @@ class SyntheticPartNormal(PartNormal):
             cls = self.classes[cat]
             cls = np.array([cls]).astype(np.int32)
             data = np.load(fn[1]).astype(np.float32)
-            if(len(self.segmentation_selection) and data.shape[1] > 6):
-                query_result = data[np.isin(data[:,-1], self.segmentation_selection)] 
-                if(query_result.shape[0]):
-                    data = query_result
+            # if(len(self.segmentation_selection) and data.shape[1] > 6):
+            #     query_result = data[np.isin(data[:,-1], self.segmentation_selection)] 
+            #     if(query_result.shape[0]):
+            #         data = query_result
                 
             point_set = data[:, 0:3]
             normal = data[:, 3:6]
